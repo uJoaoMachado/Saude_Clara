@@ -1,0 +1,99 @@
+
+name: Saúde Clara CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: Build e verificações
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+
+      - name: Verificar frontend
+        id: frontend
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar Node.js
+        if: steps.frontend.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências do frontend
+        if: steps.frontend.outputs.exists == 'true'
+        working-directory: frontend
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build do React
+        if: steps.frontend.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm run build --if-present
+
+      - name: Testes do frontend
+        if: steps.frontend.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm test --if-present
+
+      - name: Verificar backend
+        id: backend
+        run: |
+          if [ -d backend ] && find backend -name '*.py' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar Python
+        if: steps.backend.outputs.exists == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências do backend
+        if: steps.backend.outputs.exists == 'true'
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+          fi
+          pip install pytest ruff
+
+      - name: Verificar qualidade do Python
+        if: steps.backend.outputs.exists == 'true'
+        run: ruff check backend
+
+      - name: Verificar sintaxe Python
+        if: steps.backend.outputs.exists == 'true'
+        run: python -m compileall -q backend
+
+      - name: Executar testes do backend
+        if: steps.backend.outputs.exists == 'true'
+        run: |
+          if [ -d backend/tests ]; then
+            python -m pytest backend/tests
+          else
+            echo "Ainda não existem testes do backend."
+          fi
+
+      - name: Projeto ainda sem código
+        if: steps.frontend.outputs.exists == 'false' && steps.backend.outputs.exists == 'false'
+        run: echo "Pipeline preparado. Aguardando implementação do frontend e backend."
