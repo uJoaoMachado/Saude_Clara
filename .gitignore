@@ -1,0 +1,30 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.coverage
+htmlcov/
+# JS / frontend
+node_modules/
+dist/
+build/
+coverage/
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+# Logs
+*.log
+# Local databases
+*.sqlite
+*.sqlite3
